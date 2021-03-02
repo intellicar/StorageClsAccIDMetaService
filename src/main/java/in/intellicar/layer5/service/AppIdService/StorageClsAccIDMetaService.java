@@ -1,7 +1,8 @@
 package in.intellicar.layer5.service.AppIdService;
 
-import in.intellicar.layer5.service.AppIdService.mysql.MySQLQueryHandler;
-import in.intellicar.layer5.service.AppIdService.netty.NettyTCPServer;
+import in.intellicar.layer5.beacon.storagemetacls.service.common.mysql.MySQLQueryHandler;
+import in.intellicar.layer5.beacon.storagemetacls.service.common.netty.NettyTCPServer;
+import in.intellicar.layer5.service.AppIdService.mysql.AccIdMetaPayloadHandler;
 import in.intellicar.layer5.service.AppIdService.props.ServerProperties;
 import in.intellicar.layer5.service.AppIdService.server.StClsAccIDMtChInit;
 import in.intellicar.layer5.utils.PathUtils;
@@ -54,7 +55,7 @@ public class StorageClsAccIDMetaService {
         });
 
         // STEP 3: Start the MYSQL Query Handler Thread
-        MySQLQueryHandler mysqlQueryHandler = new MySQLQueryHandler(vertx, serverProperties.scratchDir ,serverProperties.dbMySQLProps , consoleLogger);
+        MySQLQueryHandler mysqlQueryHandler = new MySQLQueryHandler(vertx, serverProperties.scratchDir, serverProperties.dbMySQLProps, new AccIdMetaPayloadHandler(), consoleLogger);
         mysqlQueryHandler.init();
         mysqlQueryHandler.start();
 

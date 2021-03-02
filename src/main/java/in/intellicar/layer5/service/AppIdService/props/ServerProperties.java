@@ -1,6 +1,8 @@
 package in.intellicar.layer5.service.AppIdService.props;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import in.intellicar.layer5.beacon.storagemetacls.service.common.props.MySQLProps;
+import in.intellicar.layer5.beacon.storagemetacls.service.common.props.NettyProps;
 import in.intellicar.layer5.utils.JsonUtils;
 import in.intellicar.layer5.utils.PathUtils;
 
