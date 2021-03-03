@@ -5,10 +5,7 @@ import in.intellicar.layer5.beacon.storagemetacls.StorageClsMetaPayload;
 import in.intellicar.layer5.beacon.storagemetacls.payload.StorageClsMetaErrorRsp;
 import in.intellicar.layer5.beacon.storagemetacls.payload.accidservice.NamespaceRegReq;
 import in.intellicar.layer5.beacon.storagemetacls.payload.accidservice.NamespaceRegRsp;
-import in.intellicar.layer5.beacon.storagemetacls.payload.metaclsservice.AccountInstanceReq;
-import in.intellicar.layer5.beacon.storagemetacls.payload.metaclsservice.AccountInstanceRsp;
-import in.intellicar.layer5.beacon.storagemetacls.payload.metaclsservice.InstanceRegisterReq;
-import in.intellicar.layer5.beacon.storagemetacls.payload.metaclsservice.InstanceRegisterRsp;
+import in.intellicar.layer5.beacon.storagemetacls.payload.metaclsservice.*;
 import in.intellicar.layer5.beacon.storagemetacls.service.common.IPayloadRequestHandler;
 import in.intellicar.layer5.utils.sha.SHA256Item;
 import io.vertx.core.Future;
@@ -29,7 +26,7 @@ public class AccIdMetaPayloadHandler implements IPayloadRequestHandler {
         PayloadTypes payloadType = PayloadTypes.getPayloadType(subType);
 
         switch (payloadType) {
-            case ACCOUNT_INSTANCE_REQ:
+            case ACCOUNT_ID_REQ:
 
 
             default:
