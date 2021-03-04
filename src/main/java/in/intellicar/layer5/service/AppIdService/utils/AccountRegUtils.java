@@ -1,6 +1,7 @@
 package in.intellicar.layer5.service.AppIdService.utils;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import in.intellicar.layer5.beacon.storagemetacls.payload.accidservice.AccountIDReq;
 import in.intellicar.layer5.beacon.storagemetacls.payload.metaclsservice.InstanceRegisterReq;
 import in.intellicar.layer5.utils.JsonUtils;
 import in.intellicar.layer5.utils.LittleEndianUtils;
@@ -25,9 +26,9 @@ import java.util.logging.Logger;
 
 public class AccountRegUtils {
 
-    public static Future<SHA256Item> checkAccountID(InstanceRegisterReq req, MySQLPool vertxMySQLClient, Logger logger) {
-        String utf8name = new String(req.utf8bytes, StandardCharsets.UTF_8);
-        String sql = "SELECT storagemetacls.instance_id from instance_register where utf8name = '" + utf8name + "'";
+    public static Future<SHA256Item> checkAccountID(AccountIDReq req, MySQLPool vertxMySQLClient, Logger logger) {
+
+        String sql = "SELECT account_id from accounts.account_info where account_name = '" + req.accountNameHash.toHex() + "'";
         Future<RowSet<Row>> future = vertxMySQLClient
                 .query(sql)
                 .execute();
@@ -43,9 +44,9 @@ public class AccountRegUtils {
             if (future.isComplete()) {
                 RowSet<Row> rows = future.result();
                 if (rows != null && rows.size() > 0) {
-                    String hexID = rows.iterator().next().getString("instance_id");
-                    SHA256Item instanceID = new SHA256Item(LittleEndianUtils.hexStringToByteArray(hexID));
-                    return Future.succeededFuture(instanceID);
+                    String hexID = rows.iterator().next().getString("account_id");
+                    SHA256Item accountIDSHA = new SHA256Item(LittleEndianUtils.hexStringToByteArray(hexID));
+                    return Future.succeededFuture(accountIDSHA);
                 } else {
                     return Future.failedFuture(future.cause());
                 }
@@ -53,32 +54,30 @@ public class AccountRegUtils {
         }
     }
 
-    public static SHA256Item generateAccountID(byte[] utf8bytes) {
+    public static SHA256Item generateAccountID(byte[] nameBytes, byte[] saltBytes) {
+
+        byte[] saltyName = new byte[saltBytes.length + nameBytes.length];
+        System.arraycopy(nameBytes, 0, saltyName, 0, nameBytes.length);
+        System.arraycopy(saltBytes, 0, saltyName, nameBytes.length, saltBytes.length);
+
         try {
-            return SHA256Utils.getSHA256(utf8bytes);
+            return SHA256Utils.getSHA256(saltyName);
         } catch (NoSuchAlgorithmException e) {
             e.printStackTrace();
             return null;
         }
     }
 
-    public static Future<SHA256Item> getAccountID(InstanceRegisterReq req, MySQLPool vertxMySQLClient, Logger logger) {
+    public static Future<SHA256Item> getAccountID(AccountIDReq req, MySQLPool vertxMySQLClient, Logger logger) {
         Future<SHA256Item> checkedAccountID = checkAccountID(req, vertxMySQLClient, logger);
         if (checkedAccountID.succeeded()) {
             return checkedAccountID;
         } else {
-            String utf8name = new String(req.utf8bytes, StandardCharsets.UTF_8);
-            ObjectNode metadata = JsonUtils.omap.createObjectNode();
-            metadata.put("port", req.port);
-            try {
-                metadata.put("ip", InetAddress.getByAddress(req.ip).getCanonicalHostName());
-            } catch (Exception ignored) {
-            }
+            String salt = Long.toHexString(System.nanoTime());
+            SHA256Item accountIDSHA = generateAccountID(req.accountNameHash.hashdata, salt.getBytes());
 
-            SHA256Item instanceID = generateAccountID(req.utf8bytes);
-
-            Future<RowSet<Row>> insertFuture = vertxMySQLClient.preparedQuery("INSERT INTO storagemetacls.instance_register (instance_id, utf8name, metadata) values (?, ?, ?)")
-                    .execute(Tuple.of(instanceID.toHex(), utf8name, metadata.toString()));
+            Future<RowSet<Row>> insertFuture = vertxMySQLClient.preparedQuery("INSERT INTO accounts.account_info (account_name, salt, account_id) values (?, ?, ?)")
+                    .execute(Tuple.of(req.accountNameHash.toHex(), salt, accountIDSHA.toHex()));
 
             while (true) {
                 synchronized (insertFuture) {
@@ -90,7 +89,7 @@ public class AccountRegUtils {
                     }
                 }
                 if (insertFuture.succeeded()) {
-                    return Future.succeededFuture(instanceID);
+                    return Future.succeededFuture(accountIDSHA);
                 } else {
                     return Future.failedFuture(insertFuture.cause());
                 }

@@ -63,6 +63,7 @@ public class StClsAccIDMtChInit extends ChannelInitializer<SocketChannel> {
         for (PayloadTypes eachType : EnumSet.allOf(PayloadTypes.class))
         {
             Class payloadClass = eachType.getAssociatedPayloadClass();
+            System.out.println(payloadClass);
             if(payloadClass != null)
                 vertx.eventBus().registerDefaultCodec(payloadClass,
                         new StorageClsMtPayloadCodec<>(payloadClass, logger));
