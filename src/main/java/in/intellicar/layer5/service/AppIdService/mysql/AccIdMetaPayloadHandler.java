@@ -5,11 +5,10 @@ import in.intellicar.layer5.beacon.storagemetacls.StorageClsMetaPayload;
 import in.intellicar.layer5.beacon.storagemetacls.payload.StorageClsMetaErrorRsp;
 import in.intellicar.layer5.beacon.storagemetacls.payload.accidservice.AccountIDReq;
 import in.intellicar.layer5.beacon.storagemetacls.payload.accidservice.AccountIDRsp;
-import in.intellicar.layer5.beacon.storagemetacls.payload.accidservice.NamespaceRegReq;
-import in.intellicar.layer5.beacon.storagemetacls.payload.accidservice.NamespaceRegRsp;
-import in.intellicar.layer5.beacon.storagemetacls.payload.metaclsservice.*;
+import in.intellicar.layer5.beacon.storagemetacls.payload.accidservice.NsIdReq;
+import in.intellicar.layer5.beacon.storagemetacls.payload.accidservice.NsIdRsp;
 import in.intellicar.layer5.beacon.storagemetacls.service.common.IPayloadRequestHandler;
-import in.intellicar.layer5.service.AppIdService.utils.AccountRegUtils;
+import in.intellicar.layer5.service.AppIdService.utils.NameNodeUtils;
 import in.intellicar.layer5.utils.sha.SHA256Item;
 import io.vertx.core.Future;
 import io.vertx.mysqlclient.MySQLPool;
@@ -30,11 +29,18 @@ public class AccIdMetaPayloadHandler implements IPayloadRequestHandler {
 
         switch (payloadType) {
             case ACCOUNT_ID_REQ:
-                Future<SHA256Item> accountIDFuture = AccountRegUtils.getAccountID((AccountIDReq) lRequestPayload, lVertxMySQLClient, lLogger);
+                Future<SHA256Item> accountIDFuture = NameNodeUtils.getAccountID((AccountIDReq) lRequestPayload, lVertxMySQLClient, lLogger);
                 if (accountIDFuture.succeeded()) {
                     return new AccountIDRsp((AccountIDReq) lRequestPayload, accountIDFuture.result());
                 } else {
                     return new StorageClsMetaErrorRsp(accountIDFuture.cause().getLocalizedMessage(), lRequestPayload);
+                }
+            case NS_ID_REQ:
+                Future<SHA256Item> nsIDFuture = NameNodeUtils.getNsID((NsIdReq) lRequestPayload, lVertxMySQLClient, lLogger);
+                if (nsIDFuture.succeeded()) {
+                    return new NsIdRsp((NsIdReq) lRequestPayload, nsIDFuture.result());
+                } else {
+                    return new StorageClsMetaErrorRsp(nsIDFuture.cause().getLocalizedMessage(), lRequestPayload);
                 }
 
             default:
