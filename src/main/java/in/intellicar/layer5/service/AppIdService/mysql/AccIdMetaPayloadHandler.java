@@ -36,7 +36,7 @@ public class AccIdMetaPayloadHandler implements IPayloadRequestHandler {
                     return new StorageClsMetaErrorRsp(accountIDFuture.cause().getLocalizedMessage(), lRequestPayload);
                 }
             case NS_ID_REQ:
-                Future<SHA256Item> nsIDFuture = NameNodeUtils.getNsID((NsIdReq) lRequestPayload, lVertxMySQLClient, lLogger);
+                Future<SHA256Item> nsIDFuture = NameNodeUtils.getNsId((NsIdReq) lRequestPayload, lVertxMySQLClient, lLogger);
                 if (nsIDFuture.succeeded()) {
                     return new NsIdRsp((NsIdReq) lRequestPayload, nsIDFuture.result());
                 } else {

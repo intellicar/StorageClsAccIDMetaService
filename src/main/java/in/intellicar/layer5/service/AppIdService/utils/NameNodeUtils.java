@@ -100,7 +100,9 @@ public class NameNodeUtils {
 
     public static Future<SHA256Item> checkNsID(NsIdReq lReq, MySQLPool lVertxMySQLClient, Logger lLogger) {
         String namespaceString = new String(lReq.namespaceBytes, StandardCharsets.UTF_8);
-        String sql = "SELECT account_id from accounts.namespace_info where namespace_name = '" + namespaceString + "'";
+        //TODO:: need to recheck this approach
+        String sql = "SELECT namespace_id from accounts.namespace_info where " +
+                "(namespace_name = '" + namespaceString + "' AND account_id = '" + lReq.accountID.toHex() + "')";
         Future<RowSet<Row>> future = lVertxMySQLClient
                 .query(sql)
                 .execute();
@@ -116,9 +118,9 @@ public class NameNodeUtils {
             if (future.isComplete()) {
                 RowSet<Row> rows = future.result();
                 if (rows != null && rows.size() > 0) {
-                    String hexID = rows.iterator().next().getString("account_id");
-                    SHA256Item accountIDSHA = new SHA256Item(LittleEndianUtils.hexStringToByteArray(hexID));
-                    return Future.succeededFuture(accountIDSHA);
+                    String hexID = rows.iterator().next().getString("namespace_id");
+                    SHA256Item namespaceId = new SHA256Item(LittleEndianUtils.hexStringToByteArray(hexID));
+                    return Future.succeededFuture(namespaceId);
                 } else {
                     return Future.failedFuture(future.cause());
                 }
@@ -128,10 +130,11 @@ public class NameNodeUtils {
 
     public static SHA256Item generateNsId(SHA256Item lAccId, byte[] lNameBytes, byte[] saltBytes) {
 
-        //TODO:: nsId related calculations need to be done
-        byte[] saltyName = new byte[saltBytes.length + lNameBytes.length];
-        System.arraycopy(lNameBytes, 0, saltyName, 0, lNameBytes.length);
-        System.arraycopy(saltBytes, 0, saltyName, lNameBytes.length, saltBytes.length);
+        byte[] saltyName = new byte[SHA256Item.HASH_SIZE + 1 + lNameBytes.length + saltBytes.length];
+        System.arraycopy(lAccId.hashdata, 0, saltyName, 0, SHA256Item.HASH_SIZE);
+        saltyName[SHA256Item.HASH_SIZE] = '/';
+        System.arraycopy(lNameBytes, 0, saltyName, SHA256Item.HASH_SIZE + 1, lNameBytes.length);
+        System.arraycopy(saltBytes, 0, saltyName, SHA256Item.HASH_SIZE + 1 + lNameBytes.length, saltBytes.length);
 
         try {
             return SHA256Utils.getSHA256(saltyName);
@@ -141,17 +144,17 @@ public class NameNodeUtils {
         }
     }
 
-    public static Future<SHA256Item> getNsID(NsIdReq req, MySQLPool vertxMySQLClient, Logger logger) {
-        Future<SHA256Item> checkedAccountID = checkNsID(req, vertxMySQLClient, logger);
+    public static Future<SHA256Item> getNsId(NsIdReq lReq, MySQLPool lVertxMySQLClient, Logger lLogger) {
+        Future<SHA256Item> checkedAccountID = checkNsID(lReq, lVertxMySQLClient, lLogger);
         if (checkedAccountID.succeeded()) {
             return checkedAccountID;
         } else {
             String salt = Long.toHexString(System.nanoTime());
-            //TODO:: namespace related calculation need to be done
-            SHA256Item accountIDSHA = generateNsId(req.accountID, req.namespaceBytes, salt.getBytes());
-            String namespaceString = new String(req.namespaceBytes, StandardCharsets.UTF_8);
-            Future<RowSet<Row>> insertFuture = vertxMySQLClient.preparedQuery("INSERT INTO accounts.account_info (account_name, salt, account_id) values (?, ?, ?)")
-                    .execute(Tuple.of(namespaceString, salt, accountIDSHA.toHex()));
+            //TODO:: need to recheck this approach
+            SHA256Item namespaceId = generateNsId(lReq.accountID, lReq.namespaceBytes, salt.getBytes());
+            String namespaceString = new String(lReq.namespaceBytes, StandardCharsets.UTF_8);
+            Future<RowSet<Row>> insertFuture = lVertxMySQLClient.preparedQuery("INSERT INTO accounts.namespace_info (namespace_name, account_id, salt, namespace_id) values (?, ?, ?, ?)")
+                    .execute(Tuple.of(namespaceString, lReq.accountID.toHex(), salt, namespaceId.toHex()));
 
             while (true) {
                 synchronized (insertFuture) {
@@ -163,7 +166,7 @@ public class NameNodeUtils {
                     }
                 }
                 if (insertFuture.succeeded()) {
-                    return Future.succeededFuture(accountIDSHA);
+                    return Future.succeededFuture(namespaceId);
                 } else {
                     return Future.failedFuture(insertFuture.cause());
                 }
